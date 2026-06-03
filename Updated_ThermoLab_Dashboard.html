@@ -1,0 +1,2344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThermoLab — Interactive Thermodynamics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050a14;
+  --bg2: #0a1525;
+  --panel: #0d1e35;
+  --border: #1a3a5c;
+  --accent: #00d4ff;
+  --accent2: #ff6b2b;
+  --accent3: #00ff9d;
+  --accent4: #ffd700;
+  --text: #c8dff0;
+  --text2: #6a9bbf;
+  --hot: #ff4444;
+  --cold: #44aaff;
+  --glow: 0 0 20px rgba(0,212,255,0.3);
+  --glow2: 0 0 20px rgba(255,107,43,0.3);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── GRID BG ── */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none; z-index:0;
+}
+
+/* ── HEADER ── */
+header {
+  position: relative;
+  padding: 24px 40px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 20px;
+  background: linear-gradient(to right, rgba(0,212,255,.06), transparent);
+  z-index: 10;
+}
+
+.logo-icon {
+  width:52px; height:52px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px;
+  box-shadow: var(--glow);
+  animation: pulse-border 3s infinite;
+  flex-shrink:0;
+}
+@keyframes pulse-border {
+  0%,100% { box-shadow: 0 0 10px rgba(0,212,255,.3); }
+  50% { box-shadow: 0 0 30px rgba(0,212,255,.7); }
+}
+
+header h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size:28px; font-weight:900;
+  letter-spacing:3px;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+
+header p {
+  font-family:'Space Mono',monospace;
+  font-size:11px; color:var(--text2); letter-spacing:2px; margin-top:3px;
+}
+
+.header-badge {
+  margin-left:auto;
+  padding: 6px 16px;
+  border: 1px solid var(--accent3);
+  border-radius: 20px;
+  font-family:'Space Mono',monospace;
+  font-size:10px; color:var(--accent3);
+  letter-spacing:2px;
+  background: rgba(0,255,157,.05);
+}
+
+/* ── SYSTEM SELECTOR ── */
+.system-nav {
+  position:relative; z-index:10;
+  display:flex; gap:0; padding: 0 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  overflow-x:auto;
+}
+
+.sys-tab {
+  padding: 16px 28px;
+  font-family:'Orbitron',sans-serif;
+  font-size:11px; letter-spacing:2px;
+  color: var(--text2);
+  cursor:pointer;
+  border:none; background:transparent;
+  border-bottom: 3px solid transparent;
+  transition: all .3s;
+  white-space:nowrap;
+  display:flex; align-items:center; gap:8px;
+}
+.sys-tab:hover { color:var(--accent); }
+.sys-tab.active {
+  color:var(--accent);
+  border-bottom-color: var(--accent);
+  background: rgba(0,212,255,.06);
+}
+.sys-tab .tab-icon { font-size:16px; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  position:relative; z-index:5;
+  display:grid;
+  grid-template-columns: 1fr 420px;
+  gap:0;
+  min-height: calc(100vh - 110px);
+}
+
+/* ── VISUALIZATION PANEL ── */
+.viz-panel {
+  padding: 20px;
+  border-right: 1px solid var(--border);
+  display:flex; flex-direction:column; gap:10px;
+}
+
+.viz-header {
+  display:flex; align-items:baseline; gap:10px;
+}
+.viz-header h2 {
+  font-family:'Orbitron',sans-serif;
+  font-size:18px; color:var(--accent);
+  letter-spacing:2px;
+}
+.viz-header .subtitle {
+  font-family:'Space Mono',monospace;
+  font-size:10px; color:var(--text2);
+  letter-spacing:1px;
+}
+
+/* ── ANIMATION CANVAS ── */
+.anim-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  height: 300px;
+  position:relative;
+  overflow:hidden;
+  box-shadow: inset 0 0 60px rgba(0,0,0,.5);
+}
+
+canvas.system-canvas {
+  width:100%; height:100%;
+  display:block;
+}
+
+/* ── T-S / P-V DIAGRAM ── */
+.diagram-row {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+}
+
+.diagram-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  position:relative;
+}
+.diagram-box h4 {
+  font-family:'Orbitron',sans-serif;
+  font-size:10px; letter-spacing:2px; color:var(--text2);
+  margin-bottom:10px;
+}
+.diagram-box canvas {
+  width:100%; height:160px; display:block;
+}
+
+/* ── KNOWLEDGE CARD ── */
+.knowledge-card {
+  background: linear-gradient(135deg, rgba(0,212,255,.05), rgba(0,255,157,.03));
+  border: 1px solid rgba(0,212,255,.2);
+  border-radius: 12px;
+  padding: 12px;
+  position:relative;
+  overflow:hidden;
+}
+.knowledge-card::before {
+  content:'';
+  position:absolute; top:-40px; right:-40px;
+  width:120px; height:120px;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(0,212,255,.08), transparent 70%);
+  pointer-events:none;
+}
+.knowledge-card h3 {
+  font-family:'Orbitron',sans-serif;
+  font-size:12px; letter-spacing:2px; color:var(--accent3);
+  margin-bottom:10px;
+  display:flex; align-items:center; gap:8px;
+}
+.knowledge-card p {
+  font-size:14px; line-height:1.7; color:var(--text);
+}
+
+/* ── RIGHT PANEL ── */
+.right-panel {
+  display:flex; flex-direction:column;
+  background: var(--bg2);
+}
+
+/* ── INPUTS ── */
+.inputs-section {
+  padding: 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink:0;
+}
+
+.inputs-section h3 {
+  font-family:'Orbitron',sans-serif;
+  font-size:11px; letter-spacing:3px; color:var(--accent2);
+  margin-bottom:18px;
+  display:flex; align-items:center; gap:8px;
+}
+.inputs-section h3::before {
+  content:'▶';
+  font-size:8px; color:var(--accent2);
+}
+
+.input-grid {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+
+.input-group {
+  display:flex; flex-direction:column; gap:6px;
+}
+.input-group.full { grid-column: 1/-1; }
+
+.input-group label {
+  font-family:'Space Mono',monospace;
+  font-size:10px; color:var(--text2); letter-spacing:1px;
+}
+
+.input-group input, .input-group select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-family:'Space Mono',monospace;
+  font-size:13px;
+  padding: 10px 12px;
+  outline:none;
+  transition: border-color .2s, box-shadow .2s;
+  width:100%;
+}
+.input-group input:focus, .input-group select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0,212,255,.2);
+}
+.input-group select option { background: var(--panel); color:var(--text); }
+
+.calc-btn {
+  margin-top:10px;
+  width:100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent), #0099bb);
+  border:none; border-radius:10px;
+  color:#000;
+  font-family:'Orbitron',sans-serif;
+  font-size:12px; letter-spacing:3px;
+  font-weight:700;
+  cursor:pointer;
+  transition: all .3s;
+  box-shadow: 0 4px 20px rgba(0,212,255,.3);
+}
+.calc-btn:hover {
+  transform:translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,212,255,.5);
+}
+.calc-btn:active { transform:translateY(0); }
+
+/* ── RESULTS ── */
+.results-section {
+  padding: 18px;
+  flex:1; overflow-y:auto;
+}
+
+.results-section h3 {
+  font-family:'Orbitron',sans-serif;
+  font-size:11px; letter-spacing:3px; color:var(--accent3);
+  margin-bottom:16px;
+  display:flex; align-items:center; gap:8px;
+}
+
+.results-grid {
+  display:grid; gap:10px;
+}
+
+.result-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius:10px;
+  padding: 12px;
+  display:flex; align-items:center; gap:14px;
+  opacity:0; transform:translateX(20px);
+  transition: opacity .4s, transform .4s;
+  position:relative; overflow:hidden;
+}
+.result-card.visible { opacity:1; transform:translateX(0); }
+.result-card::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0;
+  width:3px;
+  background: var(--card-color, var(--accent));
+}
+
+.result-icon { font-size:22px; }
+.result-info { flex:1; }
+.result-info .label {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--text2); letter-spacing:1px;
+}
+.result-info .value {
+  font-family:'Orbitron',sans-serif;
+  font-size:20px; font-weight:700;
+  color: var(--card-color, var(--accent));
+}
+.result-info .unit {
+  font-family:'Space Mono',monospace;
+  font-size:10px; color:var(--text2);
+  margin-left:4px;
+}
+
+/* Progress bar */
+.result-bar {
+  position:absolute; bottom:0; left:0;
+  height:2px;
+  background: var(--card-color, var(--accent));
+  width:0%; transition: width 1s cubic-bezier(.4,0,.2,1);
+  opacity:.5;
+}
+
+/* ── EXPLANATION ── */
+.explanation-box {
+  margin-top:10px;
+  background: linear-gradient(135deg, rgba(255,107,43,.06), rgba(255,215,0,.03));
+  border: 1px solid rgba(255,107,43,.2);
+  border-radius:10px;
+  padding: 12px;
+  opacity:0; transition: opacity .5s .6s;
+}
+.explanation-box.visible { opacity:1; }
+.explanation-box h4 {
+  font-family:'Orbitron',sans-serif;
+  font-size:10px; color:var(--accent2); letter-spacing:2px; margin-bottom:8px;
+}
+.explanation-box p { font-size:13px; line-height:1.7; color:var(--text); }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  padding: 8px 28px;
+  border-top: 1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+  background: var(--bg);
+  flex-shrink:0;
+}
+.status-dot {
+  width:6px; height:6px; border-radius:50%;
+  background: var(--accent3);
+  animation: blink 1.5s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.status-text {
+  font-family:'Space Mono',monospace;
+  font-size:10px; color:var(--text2);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius:2px; }
+
+/* ── HIDDEN SYSTEM PANELS ── */
+.system-page { display:none; }
+.system-page.active { display:contents; }
+
+/* ── TOOLTIP ── */
+.tooltip {
+  position:absolute;
+  background: rgba(5,10,20,.95);
+  border: 1px solid var(--accent);
+  border-radius:8px;
+  padding:8px 12px;
+  font-family:'Space Mono',monospace;
+  font-size:11px; color:var(--accent);
+  pointer-events:none;
+  z-index:100;
+  opacity:0; transition:opacity .2s;
+}
+.tooltip.show { opacity:1; }
+
+/* Animations for particles */
+@keyframes float-up {
+  0% { transform:translateY(0) scale(1); opacity:.8; }
+  100% { transform:translateY(-80px) scale(.3); opacity:0; }
+}
+
+/* responsive */
+@media(max-width:900px){
+  .main { grid-template-columns:1fr; }
+  .right-panel { border-top:1px solid var(--border); }
+  header { padding:16px 20px; }
+  header h1 { font-size:18px; }
+  .viz-panel { padding:20px; }
+  .system-nav { padding:0 10px; }
+  .sys-tab { padding:12px 14px; font-size:9px; }
+}
+
+/* ══════════════════════════════════════════
+   ENERGY COST CALCULATOR
+══════════════════════════════════════════ */
+.cost-calc {
+  margin-top:22px;
+  border-top:1px solid var(--border);
+  padding-top:18px;
+  opacity:0; transform:translateY(10px);
+  transition: opacity .5s .95s, transform .5s .95s;
+  pointer-events:none;
+}
+.cost-calc.visible { opacity:1; transform:translateY(0); pointer-events:all; }
+
+/* header */
+.cost-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.cost-header h3 {
+  font-family:'Orbitron',sans-serif;
+  font-size:11px; letter-spacing:3px; color:var(--accent4);
+  display:flex; align-items:center; gap:8px;
+}
+.rupee-spin {
+  display:inline-block; font-size:20px; line-height:1;
+  animation: rspin 2.4s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+@keyframes rspin {
+  0%,100%{ transform:rotateY(0deg) scale(1); }
+  20%{ transform:rotateY(90deg) scale(0.7); }
+  40%{ transform:rotateY(180deg) scale(1); }
+  60%{ transform:rotateY(270deg) scale(0.7); }
+  80%{ transform:rotateY(360deg) scale(1); }
+}
+.cost-mode-badge {
+  font-family:'Space Mono',monospace; font-size:9px;
+  padding:3px 10px; border-radius:20px; letter-spacing:1px;
+  border:1px solid var(--accent4); color:var(--accent4);
+  background:rgba(255,215,0,.06);
+  transition: all .4s;
+}
+
+/* state preset chips */
+.preset-row {
+  display:flex; align-items:center; gap:5px;
+  margin-bottom:11px; flex-wrap:wrap;
+}
+.preset-row > span {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--text2); letter-spacing:1px; white-space:nowrap;
+}
+.pchip {
+  font-family:'Space Mono',monospace; font-size:9px;
+  padding:3px 8px; border-radius:20px;
+  border:1px solid var(--border); background:var(--panel);
+  color:var(--text2); cursor:pointer; transition:all .2s;
+}
+.pchip:hover,.pchip.active {
+  border-color:var(--accent4); color:var(--accent4);
+  background:rgba(255,215,0,.08);
+  box-shadow:0 0 8px rgba(255,215,0,.2);
+}
+
+/* controls */
+.cost-controls {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  margin-bottom:13px;
+}
+.cost-ctrl { display:flex; flex-direction:column; gap:5px; }
+.cost-ctrl.full { grid-column:1/-1; }
+.cost-ctrl-header { display:flex; justify-content:space-between; align-items:center; }
+.cost-ctrl label {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--text2); letter-spacing:1px;
+}
+.ctrl-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:13px; color:var(--accent4);
+}
+.cost-ctrl input[type=range] {
+  -webkit-appearance:none; appearance:none;
+  height:4px; border-radius:2px; outline:none; cursor:pointer;
+  background:linear-gradient(to right,var(--accent4) 0%,var(--border) 0%);
+}
+.cost-ctrl input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  width:14px; height:14px; border-radius:50%;
+  background:var(--accent4); cursor:pointer;
+  border:2px solid var(--bg);
+  box-shadow:0 0 8px rgba(255,215,0,.5);
+  transition:transform .15s;
+}
+.cost-ctrl input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.2); }
+.cost-ctrl input[type=number] {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:8px; color:var(--accent4);
+  font-family:'Space Mono',monospace; font-size:13px;
+  padding:8px 12px; outline:none; width:100%;
+  transition:border-color .2s, box-shadow .2s;
+}
+.cost-ctrl input[type=number]:focus {
+  border-color:var(--accent4);
+  box-shadow:0 0 10px rgba(255,215,0,.2);
+}
+.cap-hint {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--accent4); opacity:.7;
+}
+
+/* 4 cost cards */
+.cost-cards {
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  margin-bottom:12px;
+}
+.cc {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; padding:11px 13px;
+  position:relative; overflow:hidden;
+  transition:border-color .3s;
+}
+.cc::after {
+  content:''; position:absolute;
+  bottom:0; left:0; right:0; height:2px;
+  background:var(--accent4);
+  transform:scaleX(0); transform-origin:left;
+  transition:transform .9s cubic-bezier(.4,0,.2,1);
+}
+.cc.lit::after { transform:scaleX(1); }
+.cc:hover { border-color:rgba(255,215,0,.5); }
+.cc-period {
+  font-family:'Space Mono',monospace;
+  font-size:8px; color:var(--text2); letter-spacing:1px; margin-bottom:5px;
+}
+.cc-val {
+  display:flex; align-items:baseline; gap:2px;
+  color:var(--accent4); font-weight:700;
+}
+.cc-sym { font-family:'Orbitron',sans-serif; font-size:11px; }
+.cc-num { font-family:'Orbitron',sans-serif; font-size:16px; }
+.cc-sub {
+  font-family:'Space Mono',monospace;
+  font-size:8px; color:var(--text2); margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* CO2 panel */
+.co2-box {
+  background:var(--panel); border:1px solid rgba(255,107,43,.25);
+  border-radius:10px; padding:12px 14px; margin-bottom:10px;
+}
+.co2-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+.co2-label { font-family:'Space Mono',monospace; font-size:9px; color:var(--text2); letter-spacing:1px; }
+.co2-value { font-family:'Orbitron',sans-serif; font-size:13px; color:#ff6b2b; transition:color .4s; }
+.co2-track {
+  height:5px; background:rgba(255,107,43,.12);
+  border-radius:3px; overflow:hidden; margin-bottom:5px;
+}
+.co2-fill {
+  height:100%; width:0%; border-radius:3px;
+  background:linear-gradient(90deg,#ff4444,#ff6b2b);
+  transition:width 1.4s cubic-bezier(.4,0,.2,1);
+}
+.co2-note { font-family:'Space Mono',monospace; font-size:8px; color:var(--text2); }
+
+/* savings comparison */
+.savings-box {
+  background:linear-gradient(135deg,rgba(0,255,157,.04),rgba(255,215,0,.02));
+  border:1px solid rgba(0,255,157,.15);
+  border-radius:10px; padding:14px;
+}
+.savings-title {
+  font-family:'Orbitron',sans-serif;
+  font-size:9px; letter-spacing:2px; color:var(--accent3);
+  margin-bottom:10px;
+}
+.srow { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.srow-label {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--text2); width:88px; flex-shrink:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.srow-bar {
+  flex:1; height:16px; background:rgba(0,0,0,.3);
+  border-radius:3px; overflow:hidden;
+}
+.srow-fill {
+  height:100%; border-radius:3px;
+  display:flex; align-items:center; padding-left:5px;
+  transition:width 1.1s cubic-bezier(.4,0,.2,1);
+  font-family:'Space Mono',monospace; font-size:8px;
+  white-space:nowrap; overflow:hidden;
+  width:0%;
+}
+.savings-summary {
+  font-family:'Space Mono',monospace;
+  font-size:9px; color:var(--accent3);
+  margin-top:8px; padding-top:8px;
+  border-top:1px solid rgba(0,255,157,.12);
+  line-height:1.6;
+}
+/* pulse animation for large savings */
+@keyframes savingsPulse {
+  0%,100%{ text-shadow:0 0 6px rgba(0,255,157,.3); }
+  50%{ text-shadow:0 0 16px rgba(0,255,157,.7); }
+}
+.savings-summary.highlight { animation:savingsPulse 2s infinite; }
+
+.comment-box{
+  margin-top:10px;
+  background:rgba(0,255,157,.05);
+  border:1px solid rgba(0,255,157,.2);
+  border-radius:10px;
+  padding:12px;
+}
+.comment-box h4{
+  font-family:'Orbitron',sans-serif;
+  font-size:10px;
+  letter-spacing:2px;
+  color:var(--accent3);
+  margin-bottom:6px;
+}
+.comment-box p{
+  font-size:13px;
+  line-height:1.5;
+  color:var(--text);
+}
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-icon">🔥</div>
+  <div>
+    <h1>THERMOLAB</h1>
+    <p>INTERACTIVE THERMODYNAMICS ANALYSIS DASHBOARD</p>
+  </div>
+  <div class="header-badge">v2.0 LIVE</div>
+</header>
+
+<!-- SYSTEM TABS -->
+<nav class="system-nav">
+  <button class="sys-tab active" data-sys="heatengine">
+    <span class="tab-icon">⚙️</span>HEAT ENGINE
+  </button>
+  <button class="sys-tab" data-sys="refrigerator">
+    <span class="tab-icon">❄️</span>REFRIGERATOR
+  </button>
+  <button class="sys-tab" data-sys="heatpump">
+    <span class="tab-icon">♨️</span>HEAT PUMP
+  </button>
+  <button class="sys-tab" data-sys="icengine">
+    <span class="tab-icon">🏎️</span>IC ENGINE
+  </button>
+  <button class="sys-tab" data-sys="boiler">
+    <span class="tab-icon">🏭</span>BOILER
+  </button>
+  <button class="sys-tab" data-sys="turbine">
+    <span class="tab-icon">🌀</span>TURBINE
+  </button>
+  <button class="sys-tab" data-sys="nozzle">
+    <span class="tab-icon">💨</span>NOZZLE
+  </button>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: VIZ -->
+  <div class="viz-panel">
+    <div class="viz-header">
+      <h2 id="viz-title">CARNOT HEAT ENGINE</h2>
+      <span class="subtitle" id="viz-subtitle">// IDEAL REVERSIBLE CYCLE</span>
+    </div>
+
+    <div class="anim-box">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="diagram-row">
+      <div class="diagram-box">
+        <h4>T-S DIAGRAM</h4>
+        <canvas id="tsCanvas"></canvas>
+      </div>
+      <div class="diagram-box">
+        <h4>P-V / ENERGY FLOW</h4>
+        <canvas id="pvCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="knowledge-card">
+      <h3>📚 KNOWLEDGE BASE</h3>
+      <p id="knowledgeText">A heat engine converts thermal energy into mechanical work by exploiting temperature differences between a hot source and cold sink. According to the Second Law of Thermodynamics, no engine can be 100% efficient. The Carnot engine represents the theoretical maximum efficiency for any heat engine operating between two temperatures — a benchmark all real engines strive toward but never reach.</p>
+    </div>
+  </div>
+
+  <!-- RIGHT: CONTROLS -->
+  <div class="right-panel">
+    <div class="inputs-section">
+      <h3>SYSTEM PARAMETERS</h3>
+      <div class="input-grid" id="inputGrid">
+        <!-- populated by JS -->
+      </div>
+      <button class="calc-btn" id="calcBtn">⚡ CALCULATE</button>
+    </div>
+
+    <div class="results-section">
+      <h3>📊 COMPUTED RESULTS</h3>
+      <div class="results-grid" id="resultsGrid">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);text-align:center;padding:30px 0;">
+          Enter parameters and click CALCULATE
+        </div>
+      </div>
+      
+<div class="comment-box" id="commentBox">
+  <h4>💬 PERFORMANCE COMMENT</h4>
+  <p id="commentText">Run calculation to get system feedback.</p>
+</div>
+
+<div class="explanation-box" id="explanationBox">
+        <h4>⚡ RESULT ANALYSIS</h4>
+        <p id="explanationText"></p>
+      </div>
+
+      <!-- ══ ENERGY COST CALCULATOR ══ -->
+      <div class="cost-calc" id="costCalc">
+
+        <div class="cost-header">
+          <h3><span class="rupee-spin">₹</span>&nbsp;ENERGY COST ANALYSIS</h3>
+          <span class="cost-mode-badge" id="costModeBadge">CONSUMER</span>
+        </div>
+
+        <!-- State electricity board presets -->
+        <div class="preset-row">
+          <span>STATE:</span>
+          <button class="pchip" data-rate="6.55">BESCOM ₹6.55</button>
+          <button class="pchip" data-rate="9.06">MSEDCL ₹9.06</button>
+          <button class="pchip" data-rate="6.50">TNEB ₹6.50</button>
+          <button class="pchip" data-rate="7.25">KSEB ₹7.25</button>
+          <button class="pchip" data-rate="8.50">TATA ₹8.50</button>
+          <button class="pchip" data-rate="5.90">DGVCL ₹5.90</button>
+        </div>
+
+        <!-- Controls: tariff · hours · capacity -->
+        <div class="cost-controls">
+          <div class="cost-ctrl">
+            <div class="cost-ctrl-header">
+              <label>TARIFF (₹/kWh)</label>
+              <span class="ctrl-val" id="tariffVal">₹7.00</span>
+            </div>
+            <input type="range" id="tariffSlider" min="3" max="15" value="7" step="0.25">
+          </div>
+          <div class="cost-ctrl">
+            <div class="cost-ctrl-header">
+              <label>HOURS / DAY</label>
+              <span class="ctrl-val" id="hoursVal">8 h</span>
+            </div>
+            <input type="range" id="hoursSlider" min="1" max="24" value="8" step="1">
+          </div>
+          <div class="cost-ctrl full">
+            <div class="cost-ctrl-header">
+              <label>SYSTEM CAPACITY (kW)</label>
+              <span class="cap-hint" id="capHint"></span>
+            </div>
+            <input type="number" id="capacityInput" value="100" min="0.001" step="1">
+          </div>
+        </div>
+
+        <!-- 4 animated cost cards -->
+        <div class="cost-cards">
+          <div class="cc" id="cc-hour">
+            <div class="cc-period">PER HOUR</div>
+            <div class="cc-val"><span class="cc-sym">₹</span><span class="cc-num" id="cn-hour">—</span></div>
+            <div class="cc-sub" id="cs-hour">—</div>
+          </div>
+          <div class="cc" id="cc-day">
+            <div class="cc-period">PER DAY</div>
+            <div class="cc-val"><span class="cc-sym">₹</span><span class="cc-num" id="cn-day">—</span></div>
+            <div class="cc-sub" id="cs-day">—</div>
+          </div>
+          <div class="cc" id="cc-month">
+            <div class="cc-period">PER MONTH</div>
+            <div class="cc-val"><span class="cc-sym">₹</span><span class="cc-num" id="cn-month">—</span></div>
+            <div class="cc-sub" id="cs-month">—</div>
+          </div>
+          <div class="cc" id="cc-year">
+            <div class="cc-period">PER YEAR</div>
+            <div class="cc-val"><span class="cc-sym">₹</span><span class="cc-num" id="cn-year">—</span></div>
+            <div class="cc-sub" id="cs-year">—</div>
+          </div>
+        </div>
+
+        <!-- CO2 emissions / savings bar -->
+        <div class="co2-box">
+          <div class="co2-top">
+            <span class="co2-label">☁ CO₂ IMPACT / YEAR</span>
+            <span class="co2-value" id="co2Val">—</span>
+          </div>
+          <div class="co2-track"><div class="co2-fill" id="co2Fill"></div></div>
+          <div class="co2-note">Indian grid emission factor · 0.708 kg CO₂/kWh (CEA 2023)</div>
+        </div>
+
+        <!-- Comparison / savings panel -->
+        <div class="savings-box" id="savingsBox">
+          <div class="savings-title">📊 COMPARATIVE ANALYSIS</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text2);text-align:center;padding:10px 0;">
+            Run calculation to see comparison
+          </div>
+        </div>
+
+      </div><!-- end .cost-calc -->
+
+    </div><!-- end .results-section -->
+
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span class="status-text" id="statusText">SYSTEM READY — SELECT PARAMETERS</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   SYSTEM DEFINITIONS
+═══════════════════════════════════════════ */
+const SYSTEMS = {
+  heatengine: {
+    title: 'CARNOT / HEAT ENGINE',
+    subtitle: '// IDEAL REVERSIBLE CYCLE',
+    knowledge: `A heat engine converts thermal energy into mechanical work by exploiting temperature differences between a hot source and cold sink. The Carnot engine is the gold standard of thermodynamic efficiency — operating via two isothermal and two adiabatic processes. Real engines (steam turbines, gas turbines) always fall below Carnot efficiency due to irreversibilities like friction, heat loss, and non-ideal gas behavior. Applications include power plants, steam locomotives, jet engines, and spacecraft propulsion systems. The study of heat engines drove the Industrial Revolution and remains central to modern energy engineering.`,
+    inputs: [
+      { id:'Th', label:'HOT TEMP Th (K)', val:800, min:300, max:2000 },
+      { id:'Tc', label:'COLD TEMP Tc (K)', val:300, min:100, max:700 },
+      { id:'Qh', label:'HEAT INPUT Qh (kJ)', val:1000, min:1, max:50000 },
+    ],
+    calc(p) {
+      const η = 1 - p.Tc/p.Th;
+      const W = η * p.Qh;
+      const Qc = p.Qh - W;
+      const COP = 1/η;
+      return [
+        { icon:'⚡', label:'THERMAL EFFICIENCY', val:(η*100).toFixed(2), unit:'%', pct:η, color:'#00d4ff' },
+        { icon:'🔨', label:'WORK OUTPUT', val:W.toFixed(1), unit:'kJ', pct:W/p.Qh, color:'#00ff9d' },
+        { icon:'🧊', label:'HEAT REJECTED Qc', val:Qc.toFixed(1), unit:'kJ', pct:Qc/p.Qh, color:'#44aaff' },
+        { icon:'📈', label:'CARNOT COP', val:COP.toFixed(3), unit:'', pct:Math.min(COP/5,1), color:'#ffd700' },
+      ];
+    },
+    explain(p,r) {
+      const η = (1-p.Tc/p.Th)*100;
+      return `With Th=${p.Th}K and Tc=${p.Tc}K, the Carnot efficiency is ${η.toFixed(1)}%. This means ${η.toFixed(1)}% of every kJ of heat input is converted to useful work — the remaining ${(100-η).toFixed(1)}% is rejected to the cold reservoir. ${η>60?'This is an excellent efficiency — industrial systems rarely exceed 40-50%.':η>40?'This represents a practically achievable range for modern power plants.':'Consider raising Th or lowering Tc to improve performance.'} No real engine can exceed this Carnot limit.`;
+    }
+  },
+
+  refrigerator: {
+    title: 'VAPOUR COMPRESSION REFRIGERATOR',
+    subtitle: '// REFRIGERATION CYCLE',
+    knowledge: `A refrigerator is a reversed heat engine — it uses work input to transfer heat from a cold region to a warm region, against the natural flow of heat. The vapour-compression cycle (the most common type) involves four stages: compression of refrigerant vapour, condensation releasing heat, throttling through an expansion valve, and evaporation absorbing heat. Applications range from household fridges and air conditioners to industrial cold storage, cryogenics, and medical vaccine refrigeration. The efficiency is measured by the Coefficient of Performance (COP), which can exceed 1.`,
+    inputs: [
+      { id:'Th', label:'CONDENSER TEMP (K)', val:310, min:280, max:500 },
+      { id:'Tc', label:'EVAPORATOR TEMP (K)', val:260, min:150, max:290 },
+      { id:'Win', label:'WORK INPUT (kJ)', val:400, min:1, max:10000 },
+    ],
+    calc(p) {
+      const COP = p.Tc/(p.Th-p.Tc);
+      const Qc = COP * p.Win;
+      const Qh = Qc + p.Win;
+      const η_carnot = 1 - p.Tc/p.Th;
+      return [
+        { icon:'❄️', label:'COP (REFRIGERATOR)', val:COP.toFixed(3), unit:'', pct:Math.min(COP/6,1), color:'#44aaff' },
+        { icon:'🧊', label:'HEAT ABSORBED Qc', val:Qc.toFixed(1), unit:'kJ', pct:Math.min(Qc/(p.Win*5),1), color:'#00d4ff' },
+        { icon:'♨️', label:'HEAT REJECTED Qh', val:Qh.toFixed(1), unit:'kJ', pct:Math.min(Qh/(p.Win*6),1), color:'#ff6b2b' },
+        { icon:'⚡', label:'ENERGY RATIO', val:((Qc/p.Win)*100).toFixed(1), unit:'%', pct:Math.min(Qc/(p.Win*6),1), color:'#00ff9d' },
+      ];
+    },
+    explain(p,r) {
+      const COP = p.Tc/(p.Th-p.Tc);
+      return `The refrigerator operates between ${p.Tc}K (evaporator) and ${p.Th}K (condenser). COP = ${COP.toFixed(2)} means for every 1 kJ of work, ${COP.toFixed(2)} kJ of heat is removed from the cold space. ${COP>4?'Excellent COP — this system is very energy-efficient.':COP>2?'Good performance. Modern household refrigerators typically achieve COP of 3-5.':'Low COP — the temperature difference is large, requiring more work per unit cooling.'} Total heat dumped to surroundings = ${(COP*p.Win+p.Win).toFixed(1)} kJ.`;
+    }
+  },
+
+  heatpump: {
+    title: 'HEAT PUMP SYSTEM',
+    subtitle: '// HEATING MODE',
+    knowledge: `A heat pump moves heat from a cold source (outdoor air, ground, water) into a warm space — effectively the same cycle as a refrigerator but optimized for heating. It can deliver more heat energy than the electrical energy it consumes, making it far more efficient than electric resistance heating. Ground-source heat pumps exploit stable underground temperatures for year-round efficiency. Applications include domestic and commercial space heating, industrial process heating, and heat recovery systems. Heat pumps are central to modern green building strategies and decarbonization efforts.`,
+    inputs: [
+      { id:'Th', label:'DESIRED OUTPUT TEMP (K)', val:330, min:290, max:600 },
+      { id:'Tc', label:'SOURCE TEMP (K)', val:275, min:200, max:300 },
+      { id:'Win', label:'WORK INPUT (kJ)', val:500, min:1, max:10000 },
+    ],
+    calc(p) {
+      const COP_hp = p.Th/(p.Th-p.Tc);
+      const Qh = COP_hp * p.Win;
+      const Qc = Qh - p.Win;
+      const equiv_resist = p.Win; // resistance heating equivalent
+      const savings = ((Qh - equiv_resist)/Qh*100);
+      return [
+        { icon:'♨️', label:'COP (HEAT PUMP)', val:COP_hp.toFixed(3), unit:'', pct:Math.min(COP_hp/8,1), color:'#ff6b2b' },
+        { icon:'🔥', label:'HEAT DELIVERED Qh', val:Qh.toFixed(1), unit:'kJ', pct:Math.min(Qh/(p.Win*8),1), color:'#ff4444' },
+        { icon:'❄️', label:'HEAT EXTRACTED Qc', val:Qc.toFixed(1), unit:'kJ', pct:Math.min(Qc/(p.Win*7),1), color:'#44aaff' },
+        { icon:'💰', label:'ENERGY SAVINGS', val:savings.toFixed(1), unit:'%', pct:savings/100, color:'#00ff9d' },
+      ];
+    },
+    explain(p,r) {
+      const COP = p.Th/(p.Th-p.Tc);
+      const Qh = COP * p.Win;
+      return `The heat pump extracts heat from a ${p.Tc}K source and delivers it at ${p.Th}K. COP = ${COP.toFixed(2)} — meaning ${Qh.toFixed(0)} kJ of heating is achieved from just ${p.Win} kJ of work. ${COP>4?'Excellent! This pump delivers over 4x the heat compared to equivalent electric resistance heating.':COP>2?'Good performance. The pump delivers significantly more energy than consumed.':'Moderate efficiency — consider if the temperature lift can be reduced.'} Ground-source heat pumps typically achieve COP of 3–5 in real applications.`;
+    }
+  },
+
+  icengine: {
+    title: 'INTERNAL COMBUSTION ENGINE',
+    subtitle: '// OTTO / DIESEL CYCLE',
+    knowledge: `Internal combustion engines convert the chemical energy of fuel into mechanical work through combustion inside cylinders. The Otto cycle (gasoline engines) uses spark ignition and constant-volume combustion, while the Diesel cycle uses compression ignition at constant pressure. ICEs power automobiles, motorcycles, aircraft, ships, and generators globally. Key parameters include compression ratio, air-fuel ratio, and indicated mean effective pressure. Despite their prevalence, ICEs have limited thermodynamic efficiency (typically 25-40%) due to heat losses, friction, and exhaust gases, driving the shift toward electric vehicles and hybrid systems.`,
+    inputs: [
+      { id:'r', label:'COMPRESSION RATIO', val:10, min:4, max:25 },
+      { id:'gamma', label:'HEAT RATIO γ', val:1.4, min:1.2, max:1.67, step:0.01 },
+      { id:'Qin', label:'HEAT ADDED (kJ/kg)', val:800, min:100, max:5000 },
+      { id:'type', label:'CYCLE TYPE', val:'otto', type:'select', opts:['otto','diesel'] },
+      { id:'rc', label:'CUTOFF RATIO (Diesel)', val:2, min:1, max:6, step:.1 },
+    ],
+    calc(p) {
+      let η;
+      if(p.type==='otto') {
+        η = 1 - 1/Math.pow(p.r, p.gamma-1);
+      } else {
+        const rc = p.rc;
+        η = 1 - (1/Math.pow(p.r, p.gamma-1)) * ((Math.pow(rc,p.gamma)-1)/(p.gamma*(rc-1)));
+      }
+      const W = η * p.Qin;
+      const IMEP = W * 0.9; // approximation
+      const bsfc = 3600/(W/0.043); // approx BSFC in g/kWh using petrol 43MJ/kg
+      return [
+        { icon:'⚡', label:'THERMAL EFFICIENCY', val:(η*100).toFixed(2), unit:'%', pct:η, color:'#ff6b2b' },
+        { icon:'🔨', label:'NET WORK OUTPUT', val:W.toFixed(1), unit:'kJ/kg', pct:Math.min(W/3000,1), color:'#00d4ff' },
+        { icon:'📊', label:'APPROX IMEP', val:IMEP.toFixed(1), unit:'kJ/kg', pct:Math.min(IMEP/3000,1), color:'#00ff9d' },
+        { icon:'⛽', label:'APPROX BSFC', val:bsfc.toFixed(0), unit:'g/kWh', pct:Math.min(200/bsfc,1), color:'#ffd700' },
+      ];
+    },
+    explain(p,r) {
+      const η = p.type==='otto'
+        ? (1 - 1/Math.pow(p.r, p.gamma-1))*100
+        : (1 - (1/Math.pow(p.r, p.gamma-1))*((Math.pow(p.rc,p.gamma)-1)/(p.gamma*(p.rc-1))))*100;
+      return `${p.type==='otto'?'Otto (gasoline)':'Diesel'} cycle with compression ratio ${p.r} achieves ${η.toFixed(1)}% thermal efficiency. ${p.type==='otto'?`Higher compression ratios increase efficiency but risk knock (pre-ignition). Modern gasoline engines operate at r=9–12, achieving ~35% brake efficiency.`:`Diesel engines operate at higher compression ratios (14–25) achieving 40–50% efficiency — better than gasoline but heavier. The cutoff ratio ${p.rc} governs the combustion duration.`}`;
+    }
+  },
+
+  boiler: {
+    title: 'STEAM BOILER SYSTEM',
+    subtitle: '// RANKINE CYCLE COMPONENT',
+    knowledge: `A boiler is a closed vessel where water is converted into steam by the addition of heat. Boilers are the heart of the Rankine cycle — the thermodynamic foundation of all steam power plants. Types include fire-tube, water-tube, and supercritical boilers. Modern ultra-supercritical boilers operate above 600°C and 30 MPa, achieving steam cycle efficiencies above 45%. Applications span coal, gas, nuclear, biomass, and solar thermal power plants. Boiler efficiency depends on fuel combustion quality, heat transfer surfaces, insulation, and flue gas heat recovery (economizers and air preheaters).`,
+    inputs: [
+      { id:'mflow', label:'MASS FLOW (kg/s)', val:10, min:.1, max:500 },
+      { id:'h_in', label:'ENTHALPY IN (kJ/kg)', val:200, min:100, max:1000 },
+      { id:'h_out', label:'ENTHALPY OUT (kJ/kg)', val:3400, min:1000, max:4000 },
+      { id:'Qfuel', label:'FUEL HEAT INPUT (kW)', val:35000, min:1000, max:500000 },
+    ],
+    calc(p) {
+      const Qabs = p.mflow*(p.h_out - p.h_in);
+      const η = Qabs/p.Qfuel;
+      const flue_loss = p.Qfuel - Qabs;
+      const steam_power = Qabs; // kW
+      return [
+        { icon:'🏭', label:'BOILER EFFICIENCY', val:(η*100).toFixed(2), unit:'%', pct:η, color:'#ff6b2b' },
+        { icon:'♨️', label:'HEAT ABSORBED', val:Qabs.toFixed(0), unit:'kW', pct:Math.min(Qabs/p.Qfuel,1), color:'#ff4444' },
+        { icon:'💨', label:'FLUE GAS LOSS', val:flue_loss.toFixed(0), unit:'kW', pct:Math.min(flue_loss/p.Qfuel,1), color:'#44aaff' },
+        { icon:'🚀', label:'STEAM POWER', val:(steam_power/1000).toFixed(2), unit:'MW', pct:η, color:'#00ff9d' },
+      ];
+    },
+    explain(p,r) {
+      const Qabs = p.mflow*(p.h_out - p.h_in);
+      const η = (Qabs/p.Qfuel*100).toFixed(1);
+      return `The boiler absorbs ${Qabs.toFixed(0)} kW from ${p.Qfuel} kW of fuel input, achieving ${η}% efficiency. ${parseFloat(η)>88?'Excellent boiler efficiency! Modern supercritical boilers reach 88-92% with economizers and air preheaters.':parseFloat(η)>75?'Good efficiency. Consider adding economizers to recover flue gas heat.':'Low efficiency — check for excessive flue gas temperature, incomplete combustion, or poor insulation.'} Steam enthalpy rise of ${(p.h_out-p.h_in).toFixed(0)} kJ/kg for ${p.mflow} kg/s flow.`;
+    }
+  },
+
+  turbine: {
+    title: 'STEAM / GAS TURBINE',
+    subtitle: '// ISENTROPIC EXPANSION',
+    knowledge: `A turbine converts the enthalpy of high-pressure, high-temperature fluid (steam or gas) into shaft work through expansion. Steam turbines dominate power generation — a single unit can generate over 1,000 MW. Gas turbines power jet aircraft and peaking power plants. The isentropic efficiency accounts for irreversibilities like blade friction and flow separation. Multi-stage turbines extract work progressively, and reheat cycles restore steam temperature between stages to improve overall efficiency. Turbines are precision machines, often rotating at 3000–30,000 RPM, with blade materials engineered to withstand extreme temperatures and stresses.`,
+    inputs: [
+      { id:'h1', label:'INLET ENTHALPY (kJ/kg)', val:3400, min:1000, max:4500 },
+      { id:'h2s', label:'EXIT ENTHALPY IDEAL (kJ/kg)', val:2200, min:500, max:3000 },
+      { id:'ηs', label:'ISENTROPIC EFFICIENCY', val:0.88, min:.5, max:1, step:.01 },
+      { id:'mflow', label:'MASS FLOW (kg/s)', val:50, min:.1, max:1000 },
+    ],
+    calc(p) {
+      const W_ideal = p.h1 - p.h2s;
+      const W_actual = p.ηs * W_ideal;
+      const h2_actual = p.h1 - W_actual;
+      const Power = p.mflow * W_actual; // kW
+      const entropy_gen = (1 - p.ηs) * W_ideal * p.mflow / 1000; // approx
+      return [
+        { icon:'🌀', label:'ISENTROPIC EFFICIENCY', val:(p.ηs*100).toFixed(1), unit:'%', pct:p.ηs, color:'#00d4ff' },
+        { icon:'⚡', label:'ACTUAL WORK/kg', val:W_actual.toFixed(1), unit:'kJ/kg', pct:W_actual/(p.h1-p.h2s), color:'#00ff9d' },
+        { icon:'🔋', label:'SHAFT POWER', val:(Power/1000).toFixed(2), unit:'MW', pct:Math.min(Power/500000,1), color:'#ffd700' },
+        { icon:'🌡️', label:'EXIT ENTHALPY', val:h2_actual.toFixed(1), unit:'kJ/kg', pct:h2_actual/p.h1, color:'#ff6b2b' },
+      ];
+    },
+    explain(p,r) {
+      const W = p.ηs*(p.h1-p.h2s);
+      const P = (p.mflow*W/1000).toFixed(1);
+      return `Turbine expands from ${p.h1} kJ/kg to produce ${W.toFixed(1)} kJ/kg of actual work (isentropic efficiency ${(p.ηs*100).toFixed(0)}%). Total shaft power output is ${P} MW for ${p.mflow} kg/s flow. ${p.ηs>0.9?'Outstanding turbine efficiency! Modern large steam turbines achieve 90-93% isentropic efficiency.':p.ηs>0.8?'Good turbine efficiency typical of well-maintained industrial turbines.':'Check blade condition, tip clearances, and seal wear — efficiency may be recoverable.'} Irreversibilities generate entropy and raise exit enthalpy beyond ideal.`;
+    }
+  },
+
+  nozzle: {
+    title: 'CONVERGING NOZZLE / JET',
+    subtitle: '// ISENTROPIC FLOW',
+    knowledge: `A nozzle accelerates fluid by converting pressure (enthalpy) into kinetic energy with minimal heat exchange. Converging nozzles are used for subsonic flows; converging-diverging (de Laval) nozzles achieve supersonic flow used in rocket engines and jet propulsion. The nozzle efficiency accounts for friction losses. Applications include jet engine thrust nozzles, steam turbine nozzles (which feed blades), rocket thrust chambers, industrial spray nozzles, and supersonic wind tunnels. Perfect nozzle design maximizes exit velocity and minimises divergence losses, directly impacting propulsion system thrust and specific impulse.`,
+    inputs: [
+      { id:'h1', label:'INLET ENTHALPY (kJ/kg)', val:3000, min:500, max:5000 },
+      { id:'h2s', label:'EXIT ENTHALPY IDEAL (kJ/kg)', val:2500, min:100, max:4000 },
+      { id:'ηn', label:'NOZZLE EFFICIENCY', val:0.95, min:.5, max:1, step:.01 },
+      { id:'V1', label:'INLET VELOCITY (m/s)', val:50, min:0, max:500 },
+    ],
+    calc(p) {
+      const dh_ideal = p.h1 - p.h2s;
+      const V2_ideal = Math.sqrt(2*p.ηn*dh_ideal*1000 + p.V1*p.V1);
+      const V2_actual = V2_ideal;
+      const KE_gain = (V2_actual*V2_actual - p.V1*p.V1)/2000;
+      const h2_actual = p.h1 - KE_gain;
+      const thrust_coeff = V2_actual / (Math.sqrt(2*dh_ideal*1000) || 1);
+      return [
+        { icon:'💨', label:'EXIT VELOCITY', val:V2_actual.toFixed(1), unit:'m/s', pct:Math.min(V2_actual/2000,1), color:'#00d4ff' },
+        { icon:'⚡', label:'KE GAINED', val:KE_gain.toFixed(1), unit:'kJ/kg', pct:KE_gain/dh_ideal, color:'#00ff9d' },
+        { icon:'🎯', label:'NOZZLE EFFICIENCY', val:(p.ηn*100).toFixed(1), unit:'%', pct:p.ηn, color:'#ffd700' },
+        { icon:'🚀', label:'VELOCITY COEFF', val:thrust_coeff.toFixed(4), unit:'Cv', pct:thrust_coeff, color:'#ff6b2b' },
+      ];
+    },
+    explain(p,r) {
+      const dh = p.h1-p.h2s;
+      const V2 = Math.sqrt(2*p.ηn*dh*1000 + p.V1*p.V1);
+      return `The nozzle converts ${(p.ηn*dh).toFixed(1)} kJ/kg of enthalpy into kinetic energy, achieving ${V2.toFixed(0)} m/s exit velocity. ${V2>1000?'🚀 Supersonic regime! This nozzle requires a diverging section (de Laval design) to avoid choking.':V2>343?'Transonic flow approaching Mach 1 — critical pressure ratio likely reached.':'Subsonic flow. A simple converging nozzle suffices for this application.'} Nozzle efficiency ${(p.ηn*100).toFixed(0)}% accounts for wall friction and boundary layer effects.`;
+    }
+  }
+};
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let currentSys = 'heatengine';
+let animFrame;
+let t = 0; // animation time
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init() {
+  document.querySelectorAll('.sys-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sys-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentSys = btn.dataset.sys;
+      loadSystem(currentSys);
+    });
+  });
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+
+  // ── Cost calculator controls ──
+  const tariffSlider = document.getElementById('tariffSlider');
+  const hoursSlider  = document.getElementById('hoursSlider');
+  const capInput     = document.getElementById('capacityInput');
+
+  function syncSlider(slider, displayId, prefix, suffix) {
+    updateSliderBg(slider);
+    document.getElementById(displayId).textContent = prefix + parseFloat(slider.value).toFixed(slider.step < 1 ? 2 : 0) + suffix;
+  }
+
+  tariffSlider.addEventListener('input', function() {
+    syncSlider(this, 'tariffVal', '₹', '');
+    renderCostNumbers();
+  });
+  hoursSlider.addEventListener('input', function() {
+    syncSlider(this, 'hoursVal', '', ' h');
+    renderCostNumbers();
+  });
+  capInput.addEventListener('input', renderCostNumbers);
+
+  document.querySelectorAll('.pchip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.pchip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      tariffSlider.value = this.dataset.rate;
+      syncSlider(tariffSlider, 'tariffVal', '₹', '');
+      renderCostNumbers();
+    });
+  });
+
+  // Init slider track fills
+  updateSliderBg(tariffSlider);
+  updateSliderBg(hoursSlider);
+
+  loadSystem('heatengine');
+}
+
+/* ═══════════════════════════════════════════
+   LOAD SYSTEM
+═══════════════════════════════════════════ */
+function loadSystem(key) {
+  const sys = SYSTEMS[key];
+  document.getElementById('viz-title').textContent = sys.title;
+  document.getElementById('viz-subtitle').textContent = sys.subtitle;
+  document.getElementById('knowledgeText').textContent = sys.knowledge;
+
+  // Build inputs
+  const grid = document.getElementById('inputGrid');
+  grid.innerHTML = '';
+  sys.inputs.forEach(inp => {
+    const div = document.createElement('div');
+    div.className = 'input-group' + (inp.type==='select' ? ' full' : '');
+    if(inp.type === 'select') {
+      div.innerHTML = `<label>${inp.label}</label>
+        <select id="inp_${inp.id}">
+          ${inp.opts.map(o=>`<option value="${o}">${o.toUpperCase()}</option>`).join('')}
+        </select>`;
+    } else {
+      div.innerHTML = `<label>${inp.label}</label>
+        <input type="number" id="inp_${inp.id}" value="${inp.val}"
+          min="${inp.min}" max="${inp.max}" step="${inp.step||1}">`;
+    }
+    grid.appendChild(div);
+  });
+
+  // Clear results
+  document.getElementById('resultsGrid').innerHTML = `<div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);text-align:center;padding:30px 0;">Enter parameters and click CALCULATE</div>`;
+  document.getElementById('explanationBox').classList.remove('visible');
+  document.getElementById('statusText').textContent = 'SYSTEM READY — SELECT PARAMETERS';
+
+  // Reset cost calculator
+  const costCalcEl = document.getElementById('costCalc');
+  costCalcEl.classList.remove('visible');
+  document.querySelectorAll('.cc').forEach(c => c.classList.remove('lit'));
+  document.getElementById('savingsBox').innerHTML = `<div class="savings-title">📊 COMPARATIVE ANALYSIS</div><div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text2);text-align:center;padding:10px 0;">Run calculation to see comparison</div>`;
+  costParams = null;
+
+  // Start animation
+  cancelAnimationFrame(animFrame);
+  t = 0;
+  drawSystem();
+  drawDiagrams();
+}
+
+/* ═══════════════════════════════════════════
+   CALCULATE
+═══════════════════════════════════════════ */
+function calculate() {
+  const sys = SYSTEMS[currentSys];
+  const params = {};
+  sys.inputs.forEach(inp => {
+    const el = document.getElementById('inp_'+inp.id);
+    params[inp.id] = inp.type === 'select' ? el.value : parseFloat(el.value);
+  });
+
+  // Validate
+  if(currentSys === 'heatengine' || currentSys === 'refrigerator' || currentSys === 'heatpump') {
+    if(params.Th <= params.Tc) {
+      alert('Hot temperature must be greater than cold temperature!');
+      return;
+    }
+  }
+
+  const results = sys.calc(params);
+  const explanation = sys.explain(params, results);
+
+  // Render results
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = '';
+  results.forEach((r,i) => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.setProperty('--card-color', r.color);
+    card.style.transitionDelay = `${i*0.1}s`;
+    card.innerHTML = `
+      <div class="result-icon">${r.icon}</div>
+      <div class="result-info">
+        <div class="label">${r.label}</div>
+        <div class="value">${r.val}<span class="unit">${r.unit}</span></div>
+      </div>
+      <div class="result-bar" style="background:${r.color};" data-pct="${Math.min(r.pct||0,1)}"></div>
+    `;
+    grid.appendChild(card);
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        card.classList.add('visible');
+        const bar = card.querySelector('.result-bar');
+        setTimeout(()=>{ bar.style.width = (parseFloat(bar.dataset.pct)*100)+'%'; }, 200+i*100);
+      });
+    });
+  });
+
+  // Explanation
+  const expBox = document.getElementById('explanationBox');
+  document.getElementById('explanationText').textContent = explanation;
+  expBox.classList.add('visible');
+
+  
+  // Auto performance comment
+  let perfComment = "System operating in moderate condition.";
+  const firstVal = parseFloat(results[0].val);
+
+  if(firstVal >= 80){
+    perfComment = "Excellent performance detected. System is operating at a highly efficient condition.";
+  } else if(firstVal >= 50){
+    perfComment = "Good performance. System parameters are within practical operating range.";
+  } else if(firstVal >= 30){
+    perfComment = "Average performance. Optimization may improve efficiency and output.";
+  } else {
+    perfComment = "Low performance detected. Adjust system parameters for better results.";
+  }
+
+  const commentEl = document.getElementById('commentText');
+  if(commentEl){
+    commentEl.textContent = perfComment;
+  }
+
+  document.getElementById('statusText').textContent = 'CALCULATION COMPLETE — ' + new Date().toLocaleTimeString();
+
+  updateCostCalc(params, results);
+  drawDiagrams(params, results);
+}
+
+/* ═══════════════════════════════════════════
+   MAIN ANIMATION CANVAS
+═══════════════════════════════════════════ */
+function drawSystem() {
+  const canvas = document.getElementById('mainCanvas');
+  const box = canvas.parentElement;
+  canvas.width = box.clientWidth;
+  canvas.height = box.clientHeight;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0,0,W,H);
+  t += 0.016;
+
+  const drawers = {
+    heatengine: drawHeatEngineAnim,
+    refrigerator: drawRefrigeratorAnim,
+    heatpump: drawHeatPumpAnim,
+    icengine: drawICEngineAnim,
+    boiler: drawBoilerAnim,
+    turbine: drawTurbineAnim,
+    nozzle: drawNozzleAnim,
+  };
+
+  (drawers[currentSys] || drawHeatEngineAnim)(ctx, W, H, t);
+
+  animFrame = requestAnimationFrame(drawSystem);
+}
+
+/* ── helpers ── */
+function drawText(ctx, text, x, y, color='#c8dff0', size=12, font='Rajdhani') {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `bold ${size}px "${font}"`;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawArrow(ctx, x1,y1,x2,y2,color,width=2) {
+  const angle = Math.atan2(y2-y1, x2-x1);
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2-12*Math.cos(angle-0.4), y2-12*Math.sin(angle-0.4));
+  ctx.lineTo(x2-12*Math.cos(angle+0.4), y2-12*Math.sin(angle+0.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function glowRect(ctx, x,y,w,h,color,r=10) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 20;
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,r);
+  ctx.stroke();
+  ctx.fillStyle = color+'22';
+  ctx.fill();
+  ctx.restore();
+}
+
+function glowCircle(ctx, x,y,r,color) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 20;
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = color+'18'; ctx.fill();
+  ctx.restore();
+}
+
+/* ── HEAT ENGINE ── */
+function drawHeatEngineAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+
+  // Hot reservoir (top)
+  glowRect(ctx, cx-100, 20, 200, 70, '#ff4444');
+  drawText(ctx, '🔥 HOT RESERVOIR', cx-75, 60, '#ff6666', 14);
+  drawText(ctx, 'Th', cx-12, 78, '#ff9999', 11, 'Space Mono');
+
+  // Cold reservoir (bottom)
+  glowRect(ctx, cx-100, H-90, 200, 70, '#44aaff');
+  drawText(ctx, '❄️ COLD SINK', cx-60, H-52, '#66ccff', 14);
+  drawText(ctx, 'Tc', cx-12, H-38, '#99ccff', 11, 'Space Mono');
+
+  // Engine (center)
+  glowCircle(ctx, cx, cy, 55, '#00d4ff');
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(t * 1.5);
+  // Gear teeth
+  for(let i=0;i<8;i++) {
+    ctx.save();
+    ctx.rotate(i*Math.PI/4);
+    ctx.fillStyle = '#00d4ff44';
+    ctx.fillRect(-5, -60, 10, 16);
+    ctx.restore();
+  }
+  ctx.restore();
+  drawText(ctx, '⚙', cx-14, cy+10, '#00d4ff', 30);
+  drawText(ctx, 'ENGINE', cx-28, cy+30, '#00d4ff', 11, 'Space Mono');
+
+  // Heat flow Qh (down from hot)
+  const flowY1 = 90 + Math.sin(t*4)*4;
+  for(let i=0;i<4;i++) {
+    const fy = 100 + i*30 + ((t*60)%30);
+    if(fy > cy-60) continue;
+    ctx.save();
+    ctx.fillStyle = `rgba(255,100,50,${0.8-i*0.15})`;
+    ctx.beginPath(); ctx.arc(cx, fy, 6-i*0.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  drawArrow(ctx, cx, 95, cx, cy-60, '#ff6666', 2);
+  drawText(ctx, 'Qh', cx+8, 150, '#ff9999', 12, 'Space Mono');
+
+  // Heat flow Qc (down to cold)
+  for(let i=0;i<4;i++) {
+    const fy = cy+70 + ((t*60)%30) + i*30;
+    if(fy > H-100) continue;
+    ctx.save();
+    ctx.fillStyle = `rgba(50,150,255,${0.8-i*0.15})`;
+    ctx.beginPath(); ctx.arc(cx, fy, 6-i*0.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  drawArrow(ctx, cx, cy+60, cx, H-95, '#44aaff', 2);
+  drawText(ctx, 'Qc', cx+8, cy+110, '#66aaff', 12, 'Space Mono');
+
+  // Work output (right)
+  const wx = cx+55+Math.sin(t*3)*3;
+  drawArrow(ctx, cx+55, cy, cx+130, cy, '#00ff9d', 3);
+  drawText(ctx, 'W = Qh - Qc', cx+135, cy+5, '#00ff9d', 12);
+
+  // Particle shower (work)
+  for(let i=0;i<6;i++) {
+    const px = cx+70 + ((t*40+i*20)%80);
+    const py = cy - 10 + Math.sin(t*3+i)*12;
+    ctx.save();
+    ctx.fillStyle = '#00ff9d';
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ── REFRIGERATOR ── */
+function drawRefrigeratorAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+
+  // Hot (top) - heat rejected
+  glowRect(ctx, cx-100, 20, 200, 65, '#ff6b2b');
+  drawText(ctx, '♨️ CONDENSER', cx-60, 58, '#ff8855', 14);
+  drawText(ctx, '+Qh rejected', cx-45, 75, '#ff9966', 10, 'Space Mono');
+
+  // Cold (bottom) - heat absorbed
+  glowRect(ctx, cx-100, H-85, 200, 65, '#44aaff');
+  drawText(ctx, '❄️ EVAPORATOR', cx-68, H-48, '#66ccff', 14);
+  drawText(ctx, '-Qc absorbed', cx-45, H-35, '#99ccff', 10, 'Space Mono');
+
+  // Refrigerator box
+  glowRect(ctx, cx-55, cy-55, 110, 110, '#00d4ff', 15);
+  drawText(ctx, '❄️', cx-14, cy+10, '#fff', 30);
+  drawText(ctx, 'COMPRESSOR', cx-42, cy+32, '#00d4ff', 10, 'Space Mono');
+
+  // Work input (from left)
+  const wt = Math.sin(t*4)*3;
+  drawArrow(ctx, cx-150, cy, cx-60, cy, '#ffd700', 3);
+  drawText(ctx, 'W in', cx-200, cy+5, '#ffd700', 12);
+  // Electric bolts
+  for(let i=0;i<3;i++) {
+    const bx = cx-140 + i*25 + ((t*40)%25);
+    ctx.save(); ctx.fillStyle='#ffd700'; ctx.globalAlpha=0.8;
+    ctx.font='16px Arial'; ctx.fillText('⚡', bx, cy-6);
+    ctx.restore();
+  }
+
+  // Flow up to hot
+  drawArrow(ctx, cx, cy-60, cx, 90, '#ff6b2b', 2);
+  for(let i=0;i<3;i++) {
+    const fy = cy-70 - ((t*50)%60) - i*25;
+    if(fy<90||fy>cy-65) continue;
+    ctx.save(); ctx.fillStyle='#ff8855'; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.arc(cx, fy, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+
+  // Flow down to cold
+  drawArrow(ctx, cx, cy+60, cx, H-90, '#44aaff', 2);
+  for(let i=0;i<3;i++) {
+    const fy = cy+70 + ((t*50)%60) + i*25;
+    if(fy>H-90) continue;
+    ctx.save(); ctx.fillStyle='#44aaff'; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.arc(cx, fy, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+
+  // COP label
+  drawText(ctx, '↑ HEAT PUMP MODE ↑', cx-70, cy-75, '#00ff9d88', 11);
+}
+
+/* ── HEAT PUMP ── */
+function drawHeatPumpAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+  glowRect(ctx, cx-110, 20, 220, 65, '#ff4444');
+  drawText(ctx, '🏠 HEATED SPACE', cx-70, 58, '#ff6666', 14);
+  drawText(ctx, 'High Temp Output', cx-60, 75, '#ff9999', 10, 'Space Mono');
+
+  glowRect(ctx, cx-110, H-85, 220, 65, '#44aaff');
+  drawText(ctx, '🌍 GROUND / AIR SOURCE', cx-90, H-48, '#66ccff', 13);
+  drawText(ctx, 'Low Temp Input', cx-55, H-35, '#99ccff', 10, 'Space Mono');
+
+  // Heat pump unit
+  glowRect(ctx, cx-60, cy-60, 120, 120, '#ff6b2b', 15);
+  const spin = t*2;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(spin);
+  ctx.strokeStyle = '#ff6b2b44'; ctx.lineWidth=3;
+  for(let i=0;i<4;i++) {
+    ctx.save(); ctx.rotate(i*Math.PI/2);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-45); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  drawText(ctx, '♨️', cx-14, cy+10, '#fff', 30);
+  drawText(ctx, 'HEAT PUMP', cx-38, cy+32, '#ff6b2b', 10, 'Space Mono');
+
+  // Arrows up
+  drawArrow(ctx, cx, cy-65, cx, 90, '#ff4444', 3);
+  drawText(ctx, 'Qh ↑', cx+8, 140, '#ff6666', 12);
+  // Arrows down (extraction)
+  drawArrow(ctx, cx, H-90, cx, cy+65, '#44aaff', 3);
+  drawText(ctx, 'Qc ↑', cx+8, H-110, '#66aaff', 12);
+  // Work input
+  drawArrow(ctx, cx-180, cy, cx-65, cy, '#ffd700', 3);
+  drawText(ctx, '⚡ W in', cx-230, cy+5, '#ffd700', 12);
+  // Heat particles
+  for(let i=0;i<5;i++) {
+    const fy = cy-70 - ((t*55+i*22)%70);
+    if(fy<90) continue;
+    ctx.save(); ctx.fillStyle='#ff4444'; ctx.globalAlpha=0.6;
+    ctx.beginPath(); ctx.arc(cx, fy, 4, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+}
+
+/* ── IC ENGINE ── */
+function drawICEngineAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+  // Cylinder
+  glowRect(ctx, cx-45, cy-110, 90, 160, '#ff6b2b', 5);
+  drawText(ctx, 'CYLINDER', cx-35, cy-95, '#ff8855', 10, 'Space Mono');
+
+  // Piston (moves up/down)
+  const stroke = Math.sin(t*3)*50;
+  const py = cy - 10 + stroke;
+  ctx.save();
+  ctx.fillStyle = '#00d4ff44';
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 2;
+  ctx.fillRect(cx-38, py-20, 76, 30);
+  ctx.strokeRect(cx-38, py-20, 76, 30);
+  ctx.restore();
+  drawText(ctx, '◈ PISTON', cx-28, py-2, '#00d4ff', 12);
+
+  // Connecting rod
+  ctx.save();
+  ctx.strokeStyle = '#44aaff'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(cx, py+10); ctx.lineTo(cx, cy+80); ctx.stroke();
+  ctx.restore();
+
+  // Crankshaft
+  const crankR = 30;
+  const cx2 = cx + crankR*Math.cos(t*3);
+  const cy2 = cy+80 + crankR*Math.sin(t*3)*0.5;
+  glowCircle(ctx, cx, cy+80, crankR+5, '#ffd700');
+  ctx.save();
+  ctx.strokeStyle='#ffd700'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(cx, cy+80); ctx.lineTo(cx2, cy2); ctx.stroke();
+  ctx.restore();
+  glowCircle(ctx, cx2, cy2, 8, '#ffd700');
+
+  // Explosion spark (TDC)
+  if(stroke < -40) {
+    ctx.save();
+    const alpha = Math.max(0, (-stroke-40)/15);
+    ctx.globalAlpha = alpha;
+    for(let i=0;i<8;i++) {
+      const a = i*Math.PI/4;
+      const len = 15+Math.random()*10;
+      ctx.strokeStyle='#ffdd00'; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.moveTo(cx, py-5);
+      ctx.lineTo(cx+Math.cos(a)*len, py-5+Math.sin(a)*len);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Exhaust
+  if(stroke > 20) {
+    for(let i=0;i<3;i++) {
+      const ex = cx+50 + i*20;
+      const ey = cy-80 - ((t*40)%50) - i*15;
+      ctx.save(); ctx.fillStyle='#88888866'; ctx.globalAlpha=0.5;
+      ctx.beginPath(); ctx.arc(ex,ey,8-i,0,Math.PI*2); ctx.fill(); ctx.restore();
+    }
+  }
+
+  // Labels
+  drawText(ctx, '⛽ FUEL-AIR MIXTURE', cx-80, 30, '#ffd700', 12);
+  drawArrow(ctx, cx, 45, cx, cy-115, '#ffd700', 1);
+  drawText(ctx, 'POWER STROKE →', cx+60, cy+60, '#00ff9d', 11);
+  drawText(ctx, 'W out', cx+60, cy+75, '#00ff9d', 12, 'Space Mono');
+}
+
+/* ── BOILER ── */
+function drawBoilerAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+
+  // Boiler vessel
+  glowRect(ctx, cx-120, cy-80, 240, 160, '#ff4444', 20);
+  drawText(ctx, '🏭 BOILER DRUM', cx-60, cy-55, '#ff6666', 13);
+
+  // Water level (animated)
+  const waterY = cy + 20 + Math.sin(t*2)*5;
+  ctx.save();
+  ctx.fillStyle = '#44aaff33';
+  ctx.beginPath();
+  ctx.moveTo(cx-115, waterY);
+  for(let x=cx-115;x<cx+115;x+=5) {
+    ctx.lineTo(x, waterY + Math.sin((x+t*30)*0.15)*4);
+  }
+  ctx.lineTo(cx+115, cy+75); ctx.lineTo(cx-115, cy+75);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  drawText(ctx, '💧 WATER', cx-28, waterY+25, '#66aaff', 12);
+
+  // Steam (top part)
+  drawText(ctx, '♨ STEAM', cx-28, cy-20, '#ffddbb', 13);
+  for(let i=0;i<8;i++) {
+    const sx = cx - 80 + i*22;
+    const sy = cy - 30 - ((t*30+i*12)%50);
+    if(sy < cy-78) continue;
+    ctx.save(); ctx.fillStyle='rgba(255,220,180,.4)';
+    ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+
+  // Heat input (flames from bottom)
+  for(let i=0;i<5;i++) {
+    const fx = cx - 80 + i*40;
+    const fh = 30 + Math.sin(t*5+i)*10;
+    ctx.save();
+    const grad = ctx.createLinearGradient(fx, cy+80, fx, cy+80+fh);
+    grad.addColorStop(0,'#ff440088');
+    grad.addColorStop(1,'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(fx-12, cy+80+fh);
+    ctx.quadraticCurveTo(fx, cy+60+Math.sin(t*6+i)*8, fx+12, cy+80+fh);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  drawText(ctx, '🔥 BURNER', cx-35, cy+110, '#ff6644', 13);
+  drawArrow(ctx, cx, cy+120, cx, cy+82, '#ff4444', 2);
+
+  // Steam outlet
+  drawArrow(ctx, cx+120, cy-20, cx+180, cy-20, '#ffddbb', 3);
+  drawText(ctx, 'STEAM OUT →', cx+130, cy-30, '#ffddbb', 11);
+
+  // Feed water inlet
+  drawArrow(ctx, cx-180, cy+30, cx-120, cy+30, '#44aaff', 3);
+  drawText(ctx, '← FEEDWATER', cx-220, cy+45, '#66aaff', 11);
+
+  // Efficiency arc
+  const eff = 0.85 + Math.sin(t)*0.03;
+  ctx.save();
+  ctx.strokeStyle='#00ff9d'; ctx.lineWidth=3;
+  ctx.globalAlpha=0.6;
+  ctx.beginPath(); ctx.arc(cx, cy, 100, -Math.PI/2, -Math.PI/2 + eff*2*Math.PI);
+  ctx.stroke(); ctx.restore();
+  drawText(ctx, `η≈${(eff*100).toFixed(0)}%`, cx-20, cy-108, '#00ff9d', 12, 'Space Mono');
+}
+
+/* ── TURBINE ── */
+function drawTurbineAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+
+  // Turbine casing
+  glowCircle(ctx, cx, cy, 95, '#00d4ff');
+
+  // Blades
+  const nBlades = 12;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*4);
+  for(let i=0;i<nBlades;i++) {
+    ctx.save(); ctx.rotate(i*2*Math.PI/nBlades);
+    ctx.fillStyle = '#00d4ff';
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth=2; ctx.globalAlpha=0.7;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.bezierCurveTo(10,-30, 20,-65, 5,-80);
+    ctx.bezierCurveTo(-5,-65, -10,-30, 0,0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Shaft
+  ctx.save();
+  ctx.strokeStyle='#ffd700'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(cx-120, cy); ctx.lineTo(cx+120, cy); ctx.stroke();
+  ctx.restore();
+  glowCircle(ctx, cx, cy, 15, '#ffd700');
+  drawText(ctx, '⚡ SHAFT', cx-25, cy+35, '#ffd700', 12);
+
+  // Steam in (left)
+  for(let i=0;i<6;i++) {
+    const sx = cx - 110 - i*20 + ((t*60)%20);
+    const sy = cy - 5 + Math.sin(t*4+i)*8;
+    ctx.save(); ctx.fillStyle=`rgba(100,200,255,${0.8-i*0.1})`; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  drawArrow(ctx, cx-200, cy, cx-100, cy, '#44aaff', 3);
+  drawText(ctx, '← HIGH-P STEAM', cx-200, cy-20, '#66aaff', 11);
+  drawText(ctx, 'h₁, P₁', cx-210, cy+15, '#66aaff', 10, 'Space Mono');
+
+  // Exhaust (right)
+  for(let i=0;i<6;i++) {
+    const sx = cx + 110 + i*20 + ((t*40)%20);
+    const sy = cy + Math.sin(t*3+i)*12;
+    ctx.save(); ctx.fillStyle=`rgba(100,150,255,${0.6-i*0.08})`; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.arc(sx, sy, 7+i, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  drawArrow(ctx, cx+100, cy, cx+200, cy, '#4488ff', 2);
+  drawText(ctx, 'EXHAUST →', cx+140, cy-15, '#4488ff', 11);
+  drawText(ctx, 'h₂, P₂', cx+150, cy+15, '#4488ff', 10, 'Space Mono');
+
+  // Work output (up)
+  drawArrow(ctx, cx, cy-100, cx, 20, '#00ff9d', 3);
+  drawText(ctx, 'W shaft', cx+5, 40, '#00ff9d', 12);
+
+  // RPM indicator
+  const rpm = (t*4 / (2*Math.PI)) * 60 * 60;
+  drawText(ctx, `~3000 RPM`, cx-35, H-20, '#00d4ff88', 11, 'Space Mono');
+}
+
+/* ── NOZZLE ── */
+function drawNozzleAnim(ctx, W, H, t) {
+  const cx = W/2, cy = H/2;
+
+  // Nozzle shape
+  ctx.save();
+  ctx.strokeStyle='#00d4ff'; ctx.lineWidth=3;
+  ctx.shadowColor='#00d4ff'; ctx.shadowBlur=15;
+  // Top wall
+  ctx.beginPath();
+  ctx.moveTo(cx-170, cy-60);
+  ctx.bezierCurveTo(cx-80, cy-55, cx-20, cy-35, cx, cy-18);
+  ctx.bezierCurveTo(cx+30, cy-25, cx+80, cy-35, cx+170, cy-35);
+  ctx.stroke();
+  // Bottom wall
+  ctx.beginPath();
+  ctx.moveTo(cx-170, cy+60);
+  ctx.bezierCurveTo(cx-80, cy+55, cx-20, cy+35, cx, cy+18);
+  ctx.bezierCurveTo(cx+30, cy+25, cx+80, cy+35, cx+170, cy+35);
+  ctx.stroke();
+  ctx.restore();
+
+  // Inlet fill
+  ctx.save();
+  ctx.fillStyle='rgba(0,212,255,.05)';
+  ctx.beginPath();
+  ctx.moveTo(cx-170, cy-60);
+  ctx.bezierCurveTo(cx-80, cy-55, cx-20, cy-35, cx, cy-18);
+  ctx.lineTo(cx,cy+18);
+  ctx.bezierCurveTo(cx-20, cy+35, cx-80, cy+55, cx-170, cy+60);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+
+  // Exit fill (wider)
+  ctx.save();
+  ctx.fillStyle='rgba(0,255,157,.04)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-18);
+  ctx.bezierCurveTo(cx+30, cy-25, cx+80, cy-35, cx+170, cy-35);
+  ctx.lineTo(cx+170, cy+35);
+  ctx.bezierCurveTo(cx+80, cy+35, cx+30, cy+25, cx, cy+18);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+
+  // Flow particles
+  for(let i=0;i<20;i++) {
+    const frac = ((t*0.5 + i/20)%1);
+    let x, y, r;
+    if(frac < 0.45) {
+      x = cx - 170 + frac/0.45 * 170;
+      const yMax = 60 - (frac/0.45)*42;
+      y = cy + (Math.random()>0.5?1:-1) * yMax * (0.3+0.7*Math.abs(Math.sin(i)));
+      r = 4;
+    } else {
+      const f2 = (frac-0.45)/0.55;
+      x = cx + f2 * 170;
+      const yMax = 18 + f2*17;
+      y = cy + (Math.random()>0.5?1:-1) * yMax * (0.3+0.7*Math.abs(Math.sin(i)));
+      r = 3 + f2*3;
+    }
+    const speed_color = frac > 0.45 ? '#00ff9d' : '#00d4ff';
+    ctx.save();
+    ctx.fillStyle = speed_color;
+    ctx.globalAlpha = 0.7 - (frac%0.1)*2;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Labels
+  drawText(ctx, 'HIGH P', cx-165, cy-70, '#00d4ff', 11, 'Space Mono');
+  drawText(ctx, 'LOW V₁', cx-165, cy-57, '#00d4ff', 11, 'Space Mono');
+  drawArrow(ctx, cx-170, cy, cx-100, cy, '#00d4ff', 2);
+
+  drawText(ctx, 'LOW P', cx+120, cy-45, '#00ff9d', 11, 'Space Mono');
+  drawText(ctx, 'HIGH V₂', cx+120, cy-32, '#00ff9d', 11, 'Space Mono');
+  drawArrow(ctx, cx+100, cy, cx+170, cy, '#00ff9d', 3);
+
+  // Throat label
+  drawText(ctx, '🔴 THROAT', cx-30, cy-25, '#ff6b2b', 11);
+
+  // Velocity bar
+  ctx.save();
+  ctx.fillStyle='rgba(0,255,157,.15)';
+  ctx.fillRect(cx-170, H-50, 340, 16);
+  ctx.fillStyle='rgba(0,255,157,.6)';
+  ctx.fillRect(cx-170, H-50, 170 + Math.sin(t)*10, 16);
+  ctx.strokeStyle='#00ff9d'; ctx.lineWidth=1;
+  ctx.strokeRect(cx-170, H-50, 340, 16);
+  ctx.restore();
+  drawText(ctx, 'FLOW VELOCITY →', cx-80, H-36, '#00ff9d', 10, 'Space Mono');
+}
+
+/* ═══════════════════════════════════════════
+   T-S AND P-V / ENERGY DIAGRAMS
+═══════════════════════════════════════════ */
+function drawDiagrams(params, results) {
+  drawTS(params, results);
+  drawPV(params, results);
+}
+
+function setupCanvas(canvas, h=160) {
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth - 32;
+  canvas.height = h;
+  return canvas.getContext('2d');
+}
+
+function drawTS(params, results) {
+  const canvas = document.getElementById('tsCanvas');
+  const ctx = setupCanvas(canvas);
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const pad = 30;
+  ctx.save();
+  ctx.strokeStyle = '#1a3a5c'; ctx.lineWidth = 1;
+  // grid
+  for(let i=1;i<4;i++) {
+    ctx.beginPath(); ctx.moveTo(pad + i*(W-2*pad)/4, pad); ctx.lineTo(pad + i*(W-2*pad)/4, H-pad); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, pad + i*(H-2*pad)/4); ctx.lineTo(W-pad, pad + i*(H-2*pad)/4); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Axes
+  ctx.save(); ctx.strokeStyle='#1a3a5c'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  ctx.restore();
+  ctx.save(); ctx.fillStyle='#6a9bbf'; ctx.font='10px "Space Mono"';
+  ctx.fillText('S →', W-pad-5, H-5);
+  ctx.save(); ctx.translate(12, H/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('T ↑', 0, 0);
+  ctx.restore(); ctx.restore();
+
+  // Draw cycle based on system
+  const tsDrawers = {
+    heatengine: drawCarnotTS,
+    refrigerator: drawRefrigTS,
+    heatpump: drawRefrigTS,
+    icengine: drawOttoTS,
+    boiler: drawRankineTS,
+    turbine: drawTurbineTS,
+    nozzle: drawNozzleTS,
+  };
+  (tsDrawers[currentSys] || drawCarnotTS)(ctx, W, H, pad, params);
+}
+
+function drawCarnotTS(ctx, W, H, pad) {
+  const pts = [
+    [pad+20, H-pad-20], [W-pad-20, H-pad-20],
+    [W-pad-20, pad+20], [pad+20, pad+20]
+  ];
+  ctx.save();
+  ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2.5; ctx.shadowColor='#00d4ff'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(...p) : ctx.lineTo(...p));
+  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle='rgba(0,212,255,.08)';
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#00d4ff'; ctx.font='10px Rajdhani';
+  ctx.fillText('1', pts[0][0]-12, pts[0][1]+5);
+  ctx.fillText('2', pts[1][0]+5, pts[1][1]+5);
+  ctx.fillText('3', pts[2][0]+5, pts[2][1]-5);
+  ctx.fillText('4', pts[3][0]-12, pts[3][1]-5);
+  ctx.fillStyle='#00d4ff88'; ctx.font='10px Space Mono';
+  ctx.fillText('CARNOT', W/2-25, H/2+5);
+}
+
+function drawRefrigTS(ctx, W, H, pad) {
+  // Similar to Carnot but reversed direction indicator
+  const pts = [
+    [pad+20, H-pad-20], [W-pad-20, H-pad-20],
+    [W-pad-20, pad+20], [pad+20, pad+20]
+  ];
+  ctx.save();
+  ctx.strokeStyle='#44aaff'; ctx.lineWidth=2.5; ctx.shadowColor='#44aaff'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(...p) : ctx.lineTo(...p));
+  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle='rgba(68,170,255,.08)'; ctx.fill();
+  ctx.restore();
+  // arrow to show reversed cycle
+  ctx.save(); ctx.strokeStyle='#44aaff'; ctx.lineWidth=2; ctx.fillStyle='#44aaff';
+  const mx = (pts[0][0]+pts[1][0])/2, my = H-pad-20;
+  ctx.beginPath(); ctx.moveTo(mx+5, my); ctx.lineTo(mx-5,my-6); ctx.lineTo(mx-5,my+6); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#44aaff88'; ctx.font='10px Space Mono';
+  ctx.fillText('REVERSED', W/2-30, H/2+5);
+}
+
+function drawOttoTS(ctx, W, H, pad) {
+  const cx = (W-2*pad)/2 + pad;
+  const pts = [
+    [pad+15, H-pad-15],
+    [cx-30, pad+30],
+    [cx+30, pad+30],
+    [W-pad-15, H-pad-15],
+  ];
+  ctx.save(); ctx.strokeStyle='#ff6b2b'; ctx.lineWidth=2.5; ctx.shadowColor='#ff6b2b'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.moveTo(...pts[0]);
+  // adiabatic compression
+  ctx.quadraticCurveTo(pad+20, H-pad-50, ...pts[1]);
+  // heat addition (vertical)
+  ctx.lineTo(...pts[2]);
+  // adiabatic expansion
+  ctx.quadraticCurveTo(W-pad-20, H-pad-50, ...pts[3]);
+  // heat rejection
+  ctx.lineTo(...pts[0]);
+  ctx.stroke();
+  ctx.fillStyle='rgba(255,107,43,.08)'; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#ff6b2b88'; ctx.font='10px Space Mono';
+  ctx.fillText('OTTO', W/2-18, H/2+5);
+}
+
+function drawRankineTS(ctx, W, H, pad) {
+  ctx.save(); ctx.strokeStyle='#ff4444'; ctx.lineWidth=2.5; ctx.shadowColor='#ff4444'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  ctx.moveTo(pad+20, H-pad-20);
+  ctx.lineTo(pad+60, H-pad-20);
+  ctx.quadraticCurveTo(pad+70, pad+40, pad+90, pad+30);
+  ctx.lineTo(W-pad-30, pad+30);
+  ctx.lineTo(W-pad-30, H-pad-20);
+  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle='rgba(255,68,68,.08)'; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#ff444488'; ctx.font='10px Space Mono';
+  ctx.fillText('RANKINE', W/2-30, H/2+5);
+}
+
+function drawTurbineTS(ctx, W, H, pad) {
+  ctx.save(); ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2.5;
+  ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(pad+30, pad+30); ctx.lineTo(W-pad-30, H-pad-30); ctx.stroke();
+  ctx.setLineDash([]); ctx.strokeStyle='#00ff9d'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(pad+30, pad+30);
+  ctx.quadraticCurveTo(W/2+20, H/2+20, W-pad-30, H-pad-30); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='#00d4ff'; ctx.font='9px Space Mono';
+  ctx.fillText('IDEAL', pad+40, pad+45);
+  ctx.fillStyle='#00ff9d'; ctx.font='9px Space Mono';
+  ctx.fillText('ACTUAL', pad+40, pad+60);
+}
+
+function drawNozzleTS(ctx, W, H, pad) {
+  ctx.save(); ctx.strokeStyle='#00ff9d'; ctx.lineWidth=2.5; ctx.shadowColor='#00ff9d'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  ctx.moveTo(pad+20, pad+40);
+  ctx.lineTo(W-pad-20, pad+40); // isentropic (horizontal - constant entropy, falls h)
+  ctx.stroke();
+  ctx.setLineDash([4,4]); ctx.strokeStyle='#ffd70088'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad+20, pad+40); ctx.lineTo(W-pad-20, pad+60); // actual (small entropy gen)
+  ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='#00ff9d'; ctx.font='9px Space Mono'; ctx.fillText('ISENTROPIC', pad+30, pad+32);
+  ctx.fillStyle='#ffd700'; ctx.font='9px Space Mono'; ctx.fillText('ACTUAL', pad+30, pad+75);
+}
+
+function drawPV(params, results) {
+  const canvas = document.getElementById('pvCanvas');
+  const ctx = setupCanvas(canvas);
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const pad = 30;
+
+  // grid
+  ctx.save(); ctx.strokeStyle='#1a3a5c'; ctx.lineWidth=1;
+  for(let i=1;i<4;i++) {
+    ctx.beginPath(); ctx.moveTo(pad+i*(W-2*pad)/4, pad); ctx.lineTo(pad+i*(W-2*pad)/4, H-pad); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad, pad+i*(H-2*pad)/4); ctx.lineTo(W-pad, pad+i*(H-2*pad)/4); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle='#1a3a5c'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  ctx.restore();
+
+  if(results && results.length) {
+    // Energy Sankey-style bar
+    const total = results.reduce((s,r)=>s + parseFloat(r.val.replace('%','')||0), 0);
+    let x = pad;
+    results.forEach((r,i) => {
+      const pct = Math.min(r.pct || 0, 1);
+      const bw = pct * (W-2*pad-10);
+      ctx.save();
+      ctx.fillStyle = r.color + '55';
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(x, pad + i*((H-2*pad)/results.length), bw, (H-2*pad)/results.length - 6);
+      ctx.strokeRect(x, pad + i*((H-2*pad)/results.length), bw, (H-2*pad)/results.length - 6);
+      ctx.fillStyle = r.color;
+      ctx.font = '10px Space Mono';
+      ctx.fillText(r.label.slice(0,14), x+4, pad + i*((H-2*pad)/results.length) + 16);
+      ctx.fillText(r.val + (r.unit?' '+r.unit:''), x+4, pad + i*((H-2*pad)/results.length) + 28);
+      ctx.restore();
+    });
+  } else {
+    // Default P-V diagram
+    const pvDrawers = {
+      heatengine: drawCarnotPV,
+      refrigerator: drawCarnotPV,
+      icengine: drawOttoPV,
+      boiler: drawCarnotPV,
+      turbine: drawCarnotPV,
+      nozzle: drawCarnotPV,
+      heatpump: drawCarnotPV,
+    };
+    (pvDrawers[currentSys] || drawCarnotPV)(ctx, W, H, pad);
+  }
+
+  ctx.fillStyle='#6a9bbf'; ctx.font='10px Space Mono';
+  ctx.fillText('P / RESULT →', W-pad-10, H-5);
+  ctx.save(); ctx.translate(12, H/2+20); ctx.rotate(-Math.PI/2);
+  ctx.fillText('V / METRIC ↑', 0, 0); ctx.restore();
+}
+
+function drawCarnotPV(ctx, W, H, pad) {
+  ctx.save(); ctx.strokeStyle='#00d4ff'; ctx.lineWidth=2;
+  // Isothermal compression, adiabatic, isothermal expansion, adiabatic
+  ctx.beginPath();
+  ctx.moveTo(pad+20, H-pad-20);
+  ctx.quadraticCurveTo(pad+60, H-pad-50, W/2, H-pad-60);
+  ctx.quadraticCurveTo(W-pad-40, pad+50, W-pad-20, pad+20);
+  ctx.quadraticCurveTo(W-pad-60, pad+60, W/2, pad+70);
+  ctx.quadraticCurveTo(pad+40, H-pad-80, pad+20, H-pad-20);
+  ctx.stroke();
+  ctx.fillStyle='rgba(0,212,255,.06)'; ctx.fill();
+  ctx.restore();
+}
+
+function drawOttoPV(ctx, W, H, pad) {
+  ctx.save(); ctx.strokeStyle='#ff6b2b'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(W-pad-20, H-pad-20);
+  ctx.quadraticCurveTo(W/2, H-pad-40, pad+60, pad+60);
+  ctx.lineTo(pad+60, pad+20);
+  ctx.quadraticCurveTo(W/2, pad+30, W-pad-20, H-pad-50);
+  ctx.lineTo(W-pad-20, H-pad-20);
+  ctx.stroke();
+  ctx.fillStyle='rgba(255,107,43,.06)'; ctx.fill();
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════
+   ENERGY COST CALCULATOR — FUNCTIONS
+═══════════════════════════════════════════ */
+let costParams = null;
+
+/* Derive energy config from each system */
+function getCostConfig(sys, params) {
+  switch(sys) {
+    case 'heatengine': {
+      const η = 1 - params.Tc / params.Th;
+      return { consumeKW: params.Qh, generateKW: η * params.Qh,
+               defaultCap: Math.max(params.Qh, 1), type:'engine',
+               consumeLabel:'Heat Input (fuel)', generateLabel:'Electricity Out' };
+    }
+    case 'refrigerator': {
+      const COP = params.Tc / (params.Th - params.Tc);
+      return { consumeKW: params.Win, generateKW: COP * params.Win,
+               defaultCap: Math.max(params.Win, 1), type:'refrigerator',
+               consumeLabel:'Electricity In', generateLabel:'Cooling Delivered', cop: COP };
+    }
+    case 'heatpump': {
+      const COP = params.Th / (params.Th - params.Tc);
+      return { consumeKW: params.Win, generateKW: COP * params.Win,
+               defaultCap: Math.max(params.Win, 1), type:'heatpump',
+               consumeLabel:'Electricity In', generateLabel:'Heat Delivered', cop: COP };
+    }
+    case 'icengine': {
+      const η = params.type === 'otto'
+        ? 1 - 1 / Math.pow(params.r, params.gamma - 1)
+        : 1 - (1 / Math.pow(params.r, params.gamma - 1)) * ((Math.pow(params.rc, params.gamma) - 1) / (params.gamma * (params.rc - 1)));
+      return { consumeKW: params.Qin, generateKW: η * params.Qin,
+               defaultCap: Math.max(params.Qin, 1), type:'engine',
+               consumeLabel:'Fuel Energy (kJ/kg)', generateLabel:'Shaft Work Out', eff: η };
+    }
+    case 'boiler': {
+      const steamKW = params.mflow * (params.h_out - params.h_in);
+      const η = steamKW / params.Qfuel;
+      return { consumeKW: params.Qfuel, generateKW: steamKW,
+               defaultCap: Math.max(params.Qfuel, 1), type:'boiler',
+               consumeLabel:'Fuel Input (kW)', generateLabel:'Steam Output (kW)', eff: η };
+    }
+    case 'turbine': {
+      const Wact = params.ηs * (params.h1 - params.h2s);
+      const shaftKW = params.mflow * Wact;
+      return { consumeKW: params.mflow * (params.h1 - params.h2s), generateKW: shaftKW,
+               defaultCap: Math.max(shaftKW, 1), type:'turbine',
+               consumeLabel:'Steam Enthalpy In', generateLabel:'Shaft Power (kW)', eff: params.ηs };
+    }
+    case 'nozzle': {
+      const dh = params.h1 - params.h2s;
+      return { consumeKW: 100, generateKW: params.ηn * 100,
+               defaultCap: 100, type:'nozzle',
+               consumeLabel:'Pump Input', generateLabel:'KE Output', eff: params.ηn };
+    }
+    default:
+      return { consumeKW:100, generateKW:80, defaultCap:100, type:'engine',
+               consumeLabel:'Input', generateLabel:'Output' };
+  }
+}
+
+/* Indian number formatting: Cr / L / K */
+function formatINR(n) {
+  if(n >= 1e7)  return (n / 1e7).toFixed(2) + ' Cr';
+  if(n >= 1e5)  return (n / 1e5).toFixed(2) + ' L';
+  if(n >= 1e3)  return (n / 1e3).toFixed(2) + ' K';
+  return n.toFixed(2);
+}
+
+/* Count-up animation for rupee displays */
+function countUpINR(el, to, delay) {
+  setTimeout(() => {
+    const dur = 850;
+    const start = performance.now();
+    (function step(now) {
+      const prog = Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - prog, 3);
+      el.textContent = formatINR(to * eased);
+      if(prog < 1) requestAnimationFrame(step);
+      else el.textContent = formatINR(to);
+    })(performance.now());
+  }, delay || 0);
+}
+
+/* Sync range slider track fill colour */
+function updateSliderBg(slider) {
+  const min = parseFloat(slider.min), max = parseFloat(slider.max);
+  const pct = ((parseFloat(slider.value) - min) / (max - min)) * 100;
+  slider.style.background =
+    `linear-gradient(to right, var(--accent4) ${pct}%, var(--border) ${pct}%)`;
+}
+
+/* Build one comparison bar row */
+function sBar(label, value, maxVal, color, textColor) {
+  const pct = maxVal > 0 ? Math.min((value / maxVal) * 100, 100).toFixed(1) : 0;
+  const tc  = textColor || '#000';
+  return `<div class="srow">
+    <span class="srow-label">${label}</span>
+    <div class="srow-bar">
+      <div class="srow-fill" data-w="${pct}"
+           style="background:${color};color:${tc};">
+        ₹${formatINR(value)}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Animate comparison bars after HTML is set */
+function animateSavingsBars() {
+  setTimeout(() => {
+    document.querySelectorAll('.srow-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 160);
+}
+
+/* Main entry – called after every Calculate */
+function updateCostCalc(params, results) {
+  const cfg = getCostConfig(currentSys, params);
+  costParams = { ...cfg, sys: currentSys, rawParams: params };
+
+  // Set default capacity from derived config
+  const capInput = document.getElementById('capacityInput');
+  capInput.value  = Math.round(cfg.defaultCap * 10) / 10;
+  document.getElementById('capHint').textContent = cfg.generateLabel;
+
+  // Badge: generator (green) vs consumer (gold)
+  const isGen = ['engine','turbine','boiler'].includes(cfg.type);
+  const badge = document.getElementById('costModeBadge');
+  badge.textContent = isGen ? 'GENERATOR' : 'CONSUMER';
+  badge.style.borderColor  = isGen ? 'var(--accent3)' : 'var(--accent4)';
+  badge.style.color         = isGen ? 'var(--accent3)' : 'var(--accent4)';
+  badge.style.background    = isGen ? 'rgba(0,255,157,.07)' : 'rgba(255,215,0,.07)';
+
+  // Show section with transition
+  document.getElementById('costCalc').classList.add('visible');
+  renderCostNumbers();
+}
+
+/* Recalculate & re-render whenever any control changes */
+function renderCostNumbers() {
+  if(!costParams) return;
+
+  const tariff   = parseFloat(document.getElementById('tariffSlider').value) || 7;
+  const hours    = parseFloat(document.getElementById('hoursSlider').value)  || 8;
+  const capacity = parseFloat(document.getElementById('capacityInput').value) || 1;
+  const cfg      = costParams;
+  const isGen    = ['engine','turbine','boiler'].includes(cfg.type);
+
+  // kW to bill per hour
+  const billKW = isGen ? cfg.generateKW * (capacity / cfg.defaultCap) : capacity;
+  const kwhPerHour  = billKW;
+  const costPerHour = kwhPerHour * tariff;
+  const costPerDay  = costPerHour * hours;
+  const costPerMon  = costPerDay  * 30;
+  const costPerYear = costPerDay  * 365;
+  const kwhPerYear  = kwhPerHour * hours * 365;
+
+  const subs = [
+    `${kwhPerHour.toFixed(2)} kWh`,
+    `${(kwhPerHour * hours).toFixed(1)} kWh/day`,
+    `${(kwhPerHour * hours * 30 / 1000).toFixed(2)} MWh/mo`,
+    `${(kwhPerYear / 1000).toFixed(2)} MWh/yr`
+  ];
+  const periods  = ['hour','day','month','year'];
+  const amounts  = [costPerHour, costPerDay, costPerMon, costPerYear];
+
+  periods.forEach((p, i) => {
+    const numEl  = document.getElementById('cn-' + p);
+    const subEl  = document.getElementById('cs-' + p);
+    const cardEl = document.getElementById('cc-' + p);
+    countUpINR(numEl, amounts[i], i * 90);
+    subEl.textContent = subs[i];
+    setTimeout(() => cardEl.classList.add('lit'), 120 + i * 110);
+  });
+
+  // CO2
+  const co2PerYear   = isGen ? 0 : kwhPerYear * 0.708;
+  const co2Avoided   = isGen ? kwhPerYear * 0.708 : 0;
+  const co2El        = document.getElementById('co2Val');
+  const co2Fill      = document.getElementById('co2Fill');
+
+  if(isGen) {
+    co2El.style.color     = 'var(--accent3)';
+    co2El.textContent     = `${co2Avoided.toFixed(0)} kg saved`;
+    co2Fill.style.background = 'linear-gradient(90deg,#00ff9d,#00d4ff)';
+    co2Fill.style.width   = Math.min(co2Avoided / 100000 * 100, 100) + '%';
+  } else {
+    co2El.style.color     = '#ff6b2b';
+    co2El.textContent     = `${co2PerYear.toFixed(0)} kg/yr`;
+    co2Fill.style.background = 'linear-gradient(90deg,#ff4444,#ff6b2b)';
+    co2Fill.style.width   = Math.min(co2PerYear / 100000 * 100, 100) + '%';
+  }
+
+  // Savings/revenue comparison panel
+  renderSavingsPanel(cfg, tariff, hours, capacity, costPerYear, kwhPerYear, isGen, billKW);
+}
+
+function renderSavingsPanel(cfg, tariff, hours, capacity, costPerYear, kwhPerYear, isGen, billKW) {
+  const box = document.getElementById('savingsBox');
+  let html  = '';
+
+  if(cfg.type === 'heatpump') {
+    // Compare: heat pump vs electric resistance vs LPG
+    const ratio   = capacity / cfg.defaultCap;
+    const heatKW  = cfg.generateKW * ratio;              // kW of heat delivered
+    const heatKWh = heatKW * hours * 365;                // kWh heat per year
+    const hpCost  = costPerYear;                          // actual HP electricity cost
+    const resCost = heatKWh * tariff;                    // resistance heater (COP=1)
+    const lpgCost = (heatKWh / 0.85) * 3.5;             // LPG at ₹3.5/kWh thermal
+    const maxC    = Math.max(hpCost, resCost, lpgCost);
+    const saving  = resCost - hpCost;
+    const savePct = resCost > 0 ? (saving / resCost * 100).toFixed(0) : 0;
+
+    html = `<div class="savings-title">💰 ANNUAL SAVINGS vs ALTERNATIVES</div>
+      ${sBar('HEAT PUMP',   hpCost,  maxC, 'var(--accent4)', '#000')}
+      ${sBar('RESISTANCE',  resCost, maxC, '#ff4444',        '#fff')}
+      ${sBar('LPG HEATER',  lpgCost, maxC, '#ff6b2b',        '#fff')}
+      <div class="savings-summary${saving > 10000 ? ' highlight' : ''}">
+        💰 Saving vs resistance: ₹${formatINR(saving)}/yr (${savePct}% cheaper)<br>
+        🏦 Payback bonus: Every ₹1 spent = ₹${(resCost/hpCost).toFixed(2)} of heat delivered
+      </div>`;
+
+  } else if(cfg.type === 'refrigerator') {
+    const COP_actual = cfg.cop || 2;
+    const COP_carnot = costParams.rawParams.Tc / (costParams.rawParams.Th - costParams.rawParams.Tc);
+    const baseCost   = costPerYear * COP_actual;          // cost if COP = 1
+    const idealCost  = costPerYear * (COP_actual / COP_carnot); // ideal Carnot cost
+    const maxC       = Math.max(costPerYear, baseCost);
+    const saving     = baseCost - costPerYear;
+
+    html = `<div class="savings-title">❄️ COP EFFICIENCY COMPARISON (Annual)</div>
+      ${sBar('THIS SYSTEM', costPerYear, maxC, 'var(--accent)',  '#000')}
+      ${sBar('CARNOT IDEAL',idealCost,   maxC, 'var(--accent3)','#000')}
+      ${sBar('COP = 1 BASE',baseCost,    maxC, '#ff4444',       '#fff')}
+      <div class="savings-summary">
+        💰 Saving vs COP=1: ₹${formatINR(saving)}/yr<br>
+        📊 Efficiency ratio: ${COP_actual.toFixed(2)}× better than resistance cooling
+      </div>`;
+
+  } else if(cfg.type === 'engine' || cfg.type === 'turbine') {
+    // Revenue from generation
+    const fuelCostEst = costPerYear * 0.40; // fuel at ~40% of electricity tariff equivalent
+    const netRevenue  = costPerYear - fuelCostEst;
+    const maxC        = Math.max(costPerYear, fuelCostEst);
+
+    html = `<div class="savings-title">⚡ ANNUAL REVENUE vs FUEL COST</div>
+      ${sBar('POWER REVENUE', costPerYear,  maxC, 'var(--accent3)', '#000')}
+      ${sBar('FUEL COST EST.', fuelCostEst, maxC, '#ff4444',        '#fff')}
+      <div class="savings-summary${netRevenue > 0 ? ' highlight' : ''}">
+        📈 Est. net revenue: ₹${formatINR(netRevenue)}/yr<br>
+        ⚡ At ₹${parseFloat(document.getElementById('tariffSlider').value).toFixed(2)}/kWh · ${document.getElementById('hoursSlider').value} hrs/day · ${capacity} kW
+      </div>`;
+
+  } else if(cfg.type === 'boiler') {
+    const ratio      = capacity / cfg.defaultCap;
+    const steamKW    = cfg.generateKW * ratio;
+    const steamValue = steamKW * hours * 365 * tariff * 0.9; // steam at 90% of electricity value
+    const fuelCost   = costPerYear;
+    const maxC       = Math.max(steamValue, fuelCost);
+    const net        = steamValue - fuelCost;
+
+    html = `<div class="savings-title">🏭 STEAM VALUE vs FUEL COST (Annual)</div>
+      ${sBar('STEAM VALUE', steamValue, maxC, 'var(--accent3)', '#000')}
+      ${sBar('FUEL COST',   fuelCost,  maxC, '#ff4444',        '#fff')}
+      <div class="savings-summary${net > 0 ? ' highlight' : ''}">
+        📈 Net steam value: ₹${formatINR(net)}/yr<br>
+        🏭 Boiler efficiency gain: ${((cfg.generateKW / cfg.consumeKW) * 100).toFixed(1)}% of fuel → steam
+      </div>`;
+
+  } else {
+    // Generic: cost + carbon levy
+    const carbonLevy = kwhPerYear * 0.708 * 1.0; // ₹1/kg CO2 approx social cost
+    const total      = costPerYear + carbonLevy;
+    const maxC       = total;
+
+    html = `<div class="savings-title">📊 TOTAL COST BREAKDOWN (Annual)</div>
+      ${sBar('ENERGY COST',  costPerYear,  maxC, 'var(--accent)',  '#000')}
+      ${sBar('CO₂ LEVY ₹1',  carbonLevy,  maxC, '#ff6b2b',        '#fff')}
+      <div class="savings-summary">
+        💸 All-in annual cost: ₹${formatINR(total)}/yr<br>
+        ⚡ ${(kwhPerYear / 1000).toFixed(2)} MWh consumed at ₹${parseFloat(document.getElementById('tariffSlider').value).toFixed(2)}/kWh
+      </div>`;
+  }
+
+  box.innerHTML = html;
+  animateSavingsBars();
+}
+
+/* ═══════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  init();
+  // Resize canvases on window resize
+  window.addEventListener('resize', () => {
+    drawDiagrams();
+  });
+});
+</script>
+</body>
+</html>
